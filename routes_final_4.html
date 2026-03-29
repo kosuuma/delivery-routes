@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Маршруты</title>
+
+  <!-- Яндекс Карты -->
+  <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU&apikey=8941e75c-7226-484a-ba1e-184a948f15e0"></script>
+
+  <!-- SheetJS -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f7fa;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .header {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    
+    .header h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #1a1a1a;
+    }
+    
+    .header p {
+      color: #6b7280;
+      font-size: 14px;
+    }
+    
+    .controls {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    
+    .control-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .file-input-wrapper {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+      width: 100%;
+    }
+    
+    .file-input-wrapper input[type="file"] {
+      position: absolute;
+      left: -9999px;
+    }
+    
+    .file-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 20px;
+      background: #f3f4f6;
+      border: 2px dashed #d1d5db;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+      color: #6b7280;
+      height: 44px;
+    }
+    
+    .file-label:hover {
+      border-color: #3b82f6;
+      background: #eff6ff;
+      color: #3b82f6;
+    }
+    
+    .file-label.has-file {
+      border-color: #10b981;
+      background: #d1fae5;
+      color: #059669;
+      border-style: solid;
+    }
+    
+    input[type="text"] {
+      padding: 12px 16px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.2s;
+      width: 100%;
+      height: 44px;
+    }
+    
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    input[type="text"]::placeholder {
+      color: #9ca3af;
+    }
+    
+    button {
+      padding: 12px 24px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      height: 44px;
+    }
+    
+    button:hover:not(:disabled) {
+      background: #2563eb;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    
+    button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    
+    button:disabled {
+      background: #d1d5db;
+      cursor: not-allowed;
+    }
+    
+    .status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #f9fafb;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #6b7280;
+    }
+    
+    .status-success { background: #d1fae5; color: #059669; }
+    .status-error { background: #fee2e2; color: #dc2626; }
+    .status-info { background: #dbeafe; color: #2563eb; }
+    
+    .map-container {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      height: calc(100vh - 280px);
+      min-height: 500px;
+    }
+    
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .stat-card {
+      background: #f9fafb;
+      padding: 16px;
+      border-radius: 8px;
+      border-left: 3px solid #3b82f6;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+    
+    .stat-value {
+      font-size: 24px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    
+    @media (max-width: 768px) {
+      .control-row {
+        grid-template-columns: 1fr;
+      }
+      
+      .map-container {
+        height: 60vh;
+        min-height: 400px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Маршруты</h1>
+      <p>Визуализация маршрутов доставки на карте</p>
+    </div>
+
+    <div class="controls">
+      <div class="control-row">
+        <div class="file-input-wrapper">
+          <input type="file" id="fileInput" accept=".xlsx" />
+          <label for="fileInput" class="file-label" id="fileLabel">
+            📁 Выберите Excel-файл
+          </label>
+        </div>
+        
+        <input 
+          type="text" 
+          id="driverSearch" 
+          placeholder="🔍 Поиск по водителю..."
+          disabled
+        />
+        
+        <button id="showBtn" disabled>Показать на карте</button>
+      </div>
+      
+      <div id="stats" style="display: none;"></div>
+      
+      <div id="status" class="status">
+        Загрузите Excel-файл для начала работы
+      </div>
+    </div>
+
+    <div class="map-container">
+      <div id="map"></div>
+    </div>
+  </div>
+
+  <script>
+    const YANDEX_GEOCODER_API_KEY = "8941e75c-7226-484a-ba1e-184a948f15e0";
+    const GEOCODE_DELAY_MS = 100; // Уменьшили с 250 до 100 мс
+    const BATCH_SIZE = 3; // Обрабатываем по 3 адреса параллельно
+
+    const fileInput = document.getElementById("fileInput");
+    const fileLabel = document.getElementById("fileLabel");
+    const driverSearch = document.getElementById("driverSearch");
+    const showBtn = document.getElementById("showBtn");
+    const statusEl = document.getElementById("status");
+    const statsEl = document.getElementById("stats");
+    const mapEl = document.getElementById("map");
+
+    let allAddresses = [];
+    let filteredAddresses = [];
+    let map = null;
+    let geoObjects = [];
+    let drivers = new Set();
+
+    function setStatus(text, type = 'info') {
+      statusEl.className = `status status-${type}`;
+      statusEl.textContent = text;
+    }
+
+    function updateStats(total, found, notFound, filtered = false) {
+      statsEl.style.display = 'grid';
+      statsEl.className = 'stats';
+      statsEl.innerHTML = `
+        <div class="stat-card">
+          <div class="stat-label">Всего адресов</div>
+          <div class="stat-value">${total}</div>
+        </div>
+        <div class="stat-card" style="border-color: #10b981;">
+          <div class="stat-label">На карте</div>
+          <div class="stat-value">${found}</div>
+        </div>
+        ${notFound > 0 ? `
+          <div class="stat-card" style="border-color: #f59e0b;">
+            <div class="stat-label">Не найдено</div>
+            <div class="stat-value">${notFound}</div>
+          </div>
+        ` : ''}
+        ${filtered ? `
+          <div class="stat-card" style="border-color: #8b5cf6;">
+            <div class="stat-label">Отфильтровано</div>
+            <div class="stat-value">${allAddresses.length - total}</div>
+          </div>
+        ` : ''}
+      `;
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function normalizeCell(v) {
+      if (v === null || v === undefined) return "";
+      if (typeof v === "string") return v.trim();
+      
+      // Обработка чисел
+      if (typeof v === "number") {
+        // Проверяем, это Excel serial date (обычно в диапазоне 40000-50000 для дат 2010-2030)
+        if (v > 25000 && v < 60000) {
+          // Конвертируем Excel serial date в JavaScript Date
+          // Excel считает дни с 1 января 1900 (с поправкой на баг 1900 года)
+          const excelEpoch = new Date(1899, 11, 30); // 30 декабря 1899
+          const jsDate = new Date(excelEpoch.getTime() + v * 24 * 60 * 60 * 1000);
+          
+          const day = String(jsDate.getDate()).padStart(2, '0');
+          const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+          const year = jsDate.getFullYear();
+          return `${day}.${month}.${year}`;
+        }
+        
+        // Обычное число
+        return Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : String(v);
+      }
+      
+      // Обработка Date объектов
+      if (v instanceof Date) {
+        const day = String(v.getDate()).padStart(2, '0');
+        const month = String(v.getMonth() + 1).padStart(2, '0');
+        const year = v.getFullYear();
+        return `${day}.${month}.${year}`;
+      }
+      
+      return String(v).trim();
+    }
+
+    function extractAddresses(sheet) {
+      const ref = sheet["!ref"];
+      if (!ref) return [];
+
+      const range = XLSX.utils.decode_range(ref);
+      const items = [];
+
+      const cols = {
+        number: 0,
+        date: 1,
+        customer: 2,
+        driver: 3,
+        invoice: 4,
+        fio: 5,
+        address: 6,
+        km: 7,
+        model: 8,
+        delivery: 13
+      };
+
+      for (let r = range.s.r + 1; r <= range.e.r; r++) {
+        const getCell = (col) => {
+          const addr = XLSX.utils.encode_cell({ c: col, r });
+          return normalizeCell(sheet[addr]?.v);
+        };
+
+        const number = getCell(cols.number);
+        const driver = getCell(cols.driver);
+        const address = getCell(cols.address);
+
+        if (!number || !address) continue;
+
+        let cleanAddress = address
+          .replace(/^Адрес доставки\s*/i, '')
+          .split('\n')[0]
+          .replace(/\([^)]*\)/g, '')  // Убираем все в скобках
+          .replace(/\.\s*$/, '')  // Убираем точку в конце
+          .trim();
+
+        if (cleanAddress.length < 10) continue;
+
+        if (driver) drivers.add(driver);
+
+        items.push({
+          n: number,
+          date: getCell(cols.date),
+          customer: getCell(cols.customer),
+          driver: driver,
+          invoice: getCell(cols.invoice),
+          fio: getCell(cols.fio),
+          address: cleanAddress,
+          km: getCell(cols.km),
+          model: getCell(cols.model),
+          delivery: getCell(cols.delivery),
+          excelRow: r + 1
+        });
+      }
+
+      return items;
+    }
+
+    async function tryGeocode(address) {
+      const url = `https://geocode-maps.yandex.ru/1.x/?format=json&geocode=${encodeURIComponent(address)}&apikey=${YANDEX_GEOCODER_API_KEY}&results=1`;
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const feature = data?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject;
+        if (!feature) return null;
+
+        const pos = feature?.Point?.pos;
+        if (!pos) return null;
+
+        const [lonStr, latStr] = pos.trim().split(/\s+/);
+        const lon = Number(lonStr);
+        const lat = Number(latStr);
+        
+        return (Number.isFinite(lat) && Number.isFinite(lon)) ? { lat, lon } : null;
+      } catch {
+        return null;
+      }
+    }
+
+    async function geocodeAddress(address) {
+      // Попытка 1: адрес как есть
+      let result = await tryGeocode(address);
+      if (result) return result;
+
+      // Попытка 2: убираем комментарии после !!
+      if (address.includes('!!')) {
+        result = await tryGeocode(address.split('!!')[0].trim());
+        if (result) return result;
+      }
+
+      // Попытка 3: убираем детали (этаж, квартира)
+      const withoutDetails = address.replace(/, эт\.\s*\d+.*$/i, '').trim();
+      if (withoutDetails !== address) {
+        result = await tryGeocode(withoutDetails);
+        if (result) return result;
+      }
+
+      // Попытка 4: для адресов без "Россия" в начале - добавляем её
+      if (!address.toLowerCase().includes('россия')) {
+        result = await tryGeocode(`Россия, ${address}`);
+        if (result) return result;
+      }
+
+      // Попытка 5: для адресов начинающихся с области - добавляем Россия
+      if (address.match(/^(Московская|Тверская|Калужская|Владимирская|Тульская)/i)) {
+        result = await tryGeocode(`Россия, ${address}`);
+        if (result) return result;
+      }
+
+      return null;
+    }
+
+    function makePlacemark(coords, item) {
+      const balloonHtml = `
+        <div style="padding: 16px; max-width: 320px; font-family: -apple-system, sans-serif;">
+          <div style="font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 2px solid #e5e7eb;">
+            ${escapeHtml(item.invoice || 'Счет не указан')}
+          </div>
+          
+          <div style="margin-bottom: 8px; font-size: 13px; color: #6b7280;">
+            <strong>№ п/п:</strong> ${escapeHtml(item.n)}
+          </div>
+          
+          ${item.driver ? `
+            <div style="margin-bottom: 8px; font-size: 13px; color: #6b7280;">
+              <strong>Водитель:</strong> ${escapeHtml(item.driver)}
+            </div>
+          ` : ''}
+          
+          ${item.date ? `
+            <div style="margin-bottom: 8px; font-size: 13px; color: #6b7280;">
+              <strong>Дата:</strong> ${escapeHtml(item.date)}
+            </div>
+          ` : ''}
+          
+          ${item.customer ? `
+            <div style="margin-bottom: 8px; font-size: 13px; color: #6b7280;">
+              <strong>Заказчик:</strong> ${escapeHtml(item.customer)}
+            </div>
+          ` : ''}
+          
+          ${item.fio ? `
+            <div style="margin-bottom: 12px; font-size: 13px; padding: 8px; background: #f3f4f6; border-radius: 6px;">
+              <strong>ФИО получателя:</strong><br/>
+              ${escapeHtml(item.fio).replace(/\n/g, '<br/>')}
+            </div>
+          ` : ''}
+          
+          <div style="margin-bottom: 12px; padding: 10px; background: #fef3c7; border-radius: 6px; border-left: 3px solid #f59e0b;">
+            <strong style="color: #92400e;">Адрес доставки:</strong><br/>
+            <span style="color: #78350f;">${escapeHtml(item.address)}</span>
+          </div>
+          
+          ${item.km ? `
+            <div style="margin-bottom: 8px; font-size: 13px; color: #6b7280;">
+              <strong>Расстояние:</strong> ${escapeHtml(item.km)} км
+            </div>
+          ` : ''}
+          
+          ${item.model ? `
+            <div style="margin-bottom: 8px; font-size: 13px; color: #6b7280;">
+              <strong>Модель:</strong> ${escapeHtml(item.model)}
+            </div>
+          ` : ''}
+          
+          ${item.delivery ? `
+            <div style="font-size: 15px; font-weight: 600; color: #059669;">
+              <strong>Доставка:</strong> ${escapeHtml(item.delivery)} ₽
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      const NumberIconLayout = ymaps.templateLayoutFactory.createClass(
+        `<div style="
+          width: 42px; 
+          height: 42px; 
+          border-radius: 50%; 
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); 
+          border: 3px solid white; 
+          box-shadow: 0 3px 12px rgba(0,0,0,0.25); 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          font-weight: 700; 
+          color: white; 
+          font-size: 16px;
+          cursor: pointer;
+          transition: transform 0.2s;
+        ">$[properties.iconContent]</div>`
+      );
+
+      return new ymaps.Placemark(
+        coords,
+        { 
+          balloonContent: balloonHtml,
+          iconContent: String(item.n),
+          hintContent: `${item.n}. ${item.invoice || ''}`
+        },
+        {
+          iconLayout: 'default#imageWithContent',
+          iconImageHref: '',
+          iconImageSize: [1, 1],
+          iconContentLayout: NumberIconLayout,
+          iconContentSize: [42, 42],
+          iconContentOffset: [-21, -21],
+          // Увеличиваем хитбокс для клика
+          iconShape: {
+            type: 'Circle',
+            coordinates: [0, 0],
+            radius: 25  // Увеличенный радиус для легкого клика
+          }
+        }
+      );
+    }
+
+    async function initMap() {
+      if (map) return map;
+
+      return new Promise((resolve, reject) => {
+        const tick = () => {
+          if (window.ymaps?.ready) {
+            ymaps.ready(() => {
+              try {
+                map = new ymaps.Map(mapEl, {
+                  center: [55.7558, 37.6173],
+                  zoom: 10,
+                  controls: ['zoomControl', 'fullscreenControl']
+                });
+                resolve(map);
+              } catch (e) {
+                reject(e);
+              }
+            });
+          } else {
+            setTimeout(tick, 200);
+          }
+        };
+        tick();
+      });
+    }
+
+    function clearMap() {
+      if (!map) return;
+      geoObjects.forEach(obj => map.geoObjects.remove(obj));
+      geoObjects = [];
+    }
+
+    async function showOnMap() {
+      if (!filteredAddresses.length) {
+        setStatus("Нет данных для отображения", 'error');
+        return;
+      }
+
+      setStatus("Инициализация карты...", 'info');
+      
+      try {
+        await initMap();
+      } catch (e) {
+        setStatus("Ошибка загрузки карты", 'error');
+        return;
+      }
+
+      clearMap();
+
+      let success = 0;
+      let failed = 0;
+      const coords = [];
+      
+      // Обрабатываем батчами для ускорения
+      for (let batchStart = 0; batchStart < filteredAddresses.length; batchStart += BATCH_SIZE) {
+        const batchEnd = Math.min(batchStart + BATCH_SIZE, filteredAddresses.length);
+        const batch = filteredAddresses.slice(batchStart, batchEnd);
+        
+        const progress = Math.round(((batchEnd) / filteredAddresses.length) * 100);
+        setStatus(`Геокодирование: ${batchEnd}/${filteredAddresses.length} (${progress}%)`, 'info');
+        
+        // Обрабатываем батч параллельно
+        const results = await Promise.all(
+          batch.map(async (item) => {
+            try {
+              const geo = await geocodeAddress(item.address);
+              return { item, geo, success: !!geo };
+            } catch (err) {
+              console.error(`Ошибка #${item.n}:`, err);
+              return { item, geo: null, success: false };
+            }
+          })
+        );
+        
+        // Добавляем результаты на карту
+        for (const result of results) {
+          if (result.success && result.geo) {
+            success++;
+            const position = [result.geo.lat, result.geo.lon];
+            const placemark = makePlacemark(position, result.item);
+            geoObjects.push(placemark);
+            map.geoObjects.add(placemark);
+            coords.push(position);
+          } else {
+            console.warn(`Не найден: #${result.item.n} - ${result.item.address}`);
+            failed++;
+          }
+        }
+        
+        // Небольшая задержка между батчами
+        if (batchEnd < filteredAddresses.length) {
+          await new Promise(r => setTimeout(r, GEOCODE_DELAY_MS));
+        }
+      }
+
+      if (coords.length > 1) {
+        try {
+          const collection = new ymaps.GeoObjectCollection();
+          coords.forEach(c => collection.add(new ymaps.Placemark(c)));
+          const bounds = collection.getBounds();
+          
+          if (bounds?.length === 2) {
+            map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 50 });
+          }
+        } catch (err) {
+          if (coords.length > 0) map.setCenter(coords[0], 10);
+        }
+      } else if (coords.length === 1) {
+        map.setCenter(coords[0], 12);
+      }
+
+      const isFiltered = filteredAddresses.length < allAddresses.length;
+      updateStats(filteredAddresses.length, success, failed, isFiltered);
+      
+      setStatus(
+        failed > 0 
+          ? `Готово! На карте: ${success}, не найдено: ${failed}` 
+          : `Готово! Все ${success} адресов на карте`,
+        failed > 0 ? 'info' : 'success'
+      );
+    }
+
+    // Обработка поиска по водителям
+    driverSearch.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      
+      if (query === '') {
+        filteredAddresses = [...allAddresses];
+      } else {
+        filteredAddresses = allAddresses.filter(item => 
+          item.driver && item.driver.toLowerCase().includes(query)
+        );
+      }
+      
+      if (map && geoObjects.length > 0) {
+        showBtn.click();
+      }
+    });
+
+    // Загрузка файла
+    fileInput.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      
+      if (!file) {
+        fileLabel.textContent = "📁 Выберите Excel-файл";
+        fileLabel.classList.remove('has-file');
+        return;
+      }
+
+      if (!/\.xlsx$/i.test(file.name)) {
+        setStatus("Поддерживается только формат .xlsx", 'error');
+        return;
+      }
+
+      if (typeof XLSX === "undefined") {
+        setStatus("Библиотека XLSX не загрузилась", 'error');
+        return;
+      }
+
+      fileLabel.textContent = `✅ ${file.name}`;
+      fileLabel.classList.add('has-file');
+      setStatus("Читаем файл...", 'info');
+
+      try {
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: "array" });
+
+        let sheetName = workbook.SheetNames.find(n => n.toLowerCase() === 'обычные');
+        if (!sheetName) sheetName = workbook.SheetNames[0];
+        if (!sheetName) throw new Error("В файле нет листов");
+
+        const sheet = workbook.Sheets[sheetName];
+        allAddresses = extractAddresses(sheet);
+        filteredAddresses = [...allAddresses];
+
+        if (!allAddresses.length) {
+          setStatus("Адреса не найдены в файле", 'error');
+          return;
+        }
+
+        showBtn.disabled = false;
+        driverSearch.disabled = false;
+        
+        setStatus(`Загружено: ${allAddresses.length} адресов`, 'success');
+        
+        if (drivers.size > 0) {
+          console.log(`Найдены водители: ${Array.from(drivers).join(', ')}`);
+        }
+      } catch (err) {
+        console.error("Ошибка:", err);
+        setStatus(`Ошибка чтения: ${err.message}`, 'error');
+      }
+    });
+
+    showBtn.addEventListener("click", async () => {
+      showBtn.disabled = true;
+      try {
+        await showOnMap();
+      } finally {
+        showBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
